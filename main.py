@@ -5,8 +5,6 @@ import requests
 from auth_data import token
 
 
-
-
 def main():
     group_name = 'baneks'
     url = f'https://api.vk.com/method/wall.get?domain={group_name}&count=100&access_token={token}&v=5.131'
