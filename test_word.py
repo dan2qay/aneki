@@ -5,7 +5,7 @@ url = "https://sun9-73.userapi.com/impg/8sVRvYR9nYh3BD54ROTjMRdmpPP8-7pWN6W0xw/i
 
 h = httplib2.Http('.cache')
 response, content = h.request(url)
-out = open('img.jpg', 'wb')
+out = open('data/img.jpg', 'wb')
 out.write(content)
 out.close()
 
