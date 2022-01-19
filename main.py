@@ -4,50 +4,87 @@ import os
 import requests
 from auth_data import token
 
+import pickle
 
+
+def censor():
+    with open('data/censor.pkl', 'rb') as f:
+        a = pickle.load(f)
+    return a
+
+
+def get_100_posts(offset):
+    group_name = 'baneks'
+    url = f'https://api.vk.com/method/wall.get'
+
+    src = requests.get(url,
+                       params={
+                           'domain': group_name,
+                           'count': 100,
+                           'access_token': token,
+                           'v': 5.131,
+                           'offset': offset
+                       }).json()
+    return src
+
+
+def find_all(a_str, sub):
+    start = 0
+    ids = []
+    if a_str.find(sub) == -1:
+        return -1
+    else:
+        while True:
+            start = a_str.find(sub, start)
+            if start == -1:
+                return ids
+            else:
+                ids.append(start)
+            start += len(sub)
 
 
 def main():
+    COUNTER = 0
+    offset = 0
     group_name = 'baneks'
-    url = f'https://api.vk.com/method/wall.get?domain={group_name}&count=100&access_token={token}&v=5.131'
-    src = requests.get(url).json()
-    posts = src['response']['items']
-    apr_posts = []
+    attempt = 0
+    cnsr = censor()
 
-    if os.path.exists(group_name):
-        print(f'Директория с {group_name} уже существует!')
-    else:
-        os.mkdir(group_name)
+    while COUNTER < 2600:
+        print(f'Количество анекдотов: {COUNTER}')
+        try:
+            src = get_100_posts(offset)
+            posts = src['response']['items']
+        except:
+            if attempt >= 5:
+                break
+            else:
+                attempt += 1
+                continue
 
-    for post in posts:
-        if 'attachments' in post:
-            attach = set()
+        attempt = 0
+        apr_posts = []
 
-            for att in post['attachments']:
-                attach.add(att['type'])
+        for post in posts:
+            if 'copy_history' not in post and 'attachments' not in post:
+                text = post['text']
+                text_lower = text.lower()
+                for mat in cnsr:
+                    f = find_all(text_lower, mat)
+                    if f != -1:
+                        for idx in f:
+                            text = text[:idx + 1] + '*' + text[idx + 2:]
 
-            if {'photo'} == attach:
-                flag = True
+                apr_posts.append(str(COUNTER) + ') ' + text)
+                COUNTER += 1
 
-                for att in post['attachments']:
-                    link = att['photo']['sizes'][-1]['url']
-                    if not link.startswith('https://sun'):
-                        flag = False
+        with open(f'{group_name}/{group_name}.txt', 'a', encoding='UTF-8') as f:
+            for anek in apr_posts:
+                # print(anek)
+                f.write(anek)
+                f.write('\n')
 
-                if flag:
-                    apr_posts.append([])
-
-                    apr_posts[-1].append(post['text'])
-                    for att in post['attachments']:
-                        link = att['photo']['sizes'][-1]['url']
-                        apr_posts[-1].append(link)
-
-        elif 'copy_history' not in post:
-            apr_posts.append(post['text'])
-
-    [print(x, '\n') for x in apr_posts]
-    with open(f'{group_name}/{group_name}.json', 'w', encoding='UTF-8') as f:
-        json.dump(posts, f, indent=4, ensure_ascii=False)
+        offset += 100
 
 
 if __name__ == '__main__':
